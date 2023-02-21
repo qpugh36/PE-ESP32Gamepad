@@ -1,0 +1,211 @@
+#include <Arduino.h>
+#include <FastLED.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+
+#define NUM_LEDS_1 4
+#define NUM_LEDS_2 4
+#define NUM_LEDS_3 4
+#define LED_PIN_1 4
+#define LED_PIN_2 5
+#define LED_PIN_3 6
+#define BUTTON_1 4
+#define BUTTON_2 5
+#define BUTTON_3 8
+#define BUTTON_4 9
+#define BUTTON_5 17
+#define BUTTON_6 18
+#define BUTTON_7 21
+#define BUTTON_8 22
+#define BUTTON_9 35
+#define BUTTON_10 34
+#define BUTTON_11 23
+#define BUTTON_12 33
+#define BUTTON_13 31
+#define BUTTON_14 30
+#define BUTTON_15 29
+#define BUTTON_16 28
+#define THUMBSTICK_1_X 47
+#define THUMBSTICK_1_Y 48
+#define THUMBSTICK_2_X 39
+#define THUMBSTICK_2_Y 38
+#define DEAD_ZONE_SIZE 50
+#define BRIGHTNESS_INCREMENT 10
+
+CRGB leds1[NUM_LEDS_1];
+CRGB leds2[NUM_LEDS_2];
+CRGB leds3[NUM_LEDS_3];
+CRGB colorPalette[] = {CRGB::Red, CRGB::Orange, CRGB::Yellow, CRGB::Green, CRGB::Blue, CRGB::Purple};
+int numColors = sizeof(colorPalette) / sizeof(CRGB);
+int currentColorIndex = 0;
+bool colorSelected = false;
+bool ledsOn = true;
+int brightnessLevel = 255;
+
+BLEServer *pServer = NULL;
+
+void setup() {
+  // Initialize the buttons and thumbsticks as inputs
+  pinMode(BUTTON_1, INPUT);
+  pinMode(BUTTON_2, INPUT);
+  pinMode(BUTTON_3, INPUT);
+  pinMode(BUTTON_4, INPUT);
+  pinMode(BUTTON_5, INPUT);
+  pinMode(BUTTON_6, INPUT);
+  pinMode(BUTTON_7, INPUT);
+  pinMode(BUTTON_8, INPUT);
+  pinMode(BUTTON_9, INPUT);
+  pinMode(BUTTON_10, INPUT);
+  pinMode(BUTTON_11, INPUT);
+  pinMode(BUTTON_12, INPUT);
+  pinMode(BUTTON_13, INPUT);
+  pinMode(BUTTON_14, INPUT);
+  pinMode(BUTTON_15, INPUT);
+  pinMode(BUTTON_16, INPUT);
+  pinMode(THUMBSTICK_1_X, INPUT);
+  pinMode(THUMBSTICK_1_Y, INPUT);
+  pinMode(THUMBSTICK_2_X, INPUT);
+  pinMode(THUMBSTICK_2_Y, INPUT);
+
+  // Initialize the LEDs
+  FastLED.addLeds<WS2812B, LED_PIN_1, GRB>(leds1, NUM_LEDS_1);
+  FastLED.addLeds<WS2812B, LED_PIN_2, GRB>(leds2, NUM_LEDS_2);
+  FastLED.addLeds<WS2812B, LED_PIN_3, GRB>(leds3, NUM_LEDS_3);
+  FastLED.setBrightness(brightnessLevel);
+  for (int i = 0; i < NUM_LEDS_1; i++) {
+    leds1[i].setHSV(currentColorIndex + (i / NUM_LEDS_1), 255, 255);
+  }
+  FastLED.show();
+  for (int i = 0; i < NUM_LEDS_2; i++) {
+    leds2[i].setHSV(currentColorIndex + (i / NUM_LEDS_2), 255, 255);
+  }
+  FastLED.show();
+  for (int i = 0; i < NUM_LEDS_3; i++) {
+    leds3[i].setHSV(currentColorIndex + (i / NUM_LEDS_3), 255, 255);
+  }
+  FastLED.show();
+
+  // Start the Bluetooth server
+  BLEDevice::init("ESP32 Gamepad");
+  pServer = BLEDevice::createServer();
+  pServer->startAdvertising();
+}
+
+void loop() {
+  // Read the state of the buttons
+  int button1 = digitalRead(BUTTON_1);
+  int button2 = digitalRead(BUTTON_2);
+  int button3 = digitalRead(BUTTON_3);
+  int button4 = digitalRead(BUTTON_4);
+  int button5 = digitalRead(BUTTON_5);
+  int button6 = digitalRead(BUTTON_6);
+  int button7 = digitalRead(BUTTON_7);
+  int button8 = digitalRead(BUTTON_8);
+  int button9 = digitalRead(BUTTON_9);
+  int button10 = digitalRead(BUTTON_10);
+  int button11 = digitalRead(BUTTON_11);
+  int button12 = digitalRead(BUTTON_12);
+  int button13 = digitalRead(BUTTON_13);
+  int button14 = digitalRead(BUTTON_14);
+  int button15 = digitalRead(BUTTON_15);
+  int button16 = digitalRead(BUTTON_16);
+
+  // Read the state of the thumbsticks
+  int thumbstick1X = analogRead(THUMBSTICK_1_X);
+  int thumbstick1Y = analogRead(THUMBSTICK_1_Y);
+  int thumbstick2X = analogRead(THUMBSTICK_2_X);
+  int thumbstick2Y = analogRead(THUMBSTICK_2_Y);
+
+  // Apply the dead zone to the thumbsticks
+  if (abs(thumbstick1X - 512) < DEAD_ZONE_SIZE) {
+    thumbstick1X = 512;
+  }
+  if (abs(thumbstick1Y - 512) < DEAD_ZONE_SIZE) {
+    thumbstick1Y = 512;
+  }
+  if (abs(thumbstick2X - 512) < DEAD_ZONE_SIZE) {
+    thumbstick2X = 512;
+  }
+  if (abs(thumbstick2Y - 512) < DEAD_ZONE_SIZE) {
+    thumbstick2Y = 512;
+  }
+
+  // Check if the user is selecting a new LED color
+  if (button1 && button12) {
+    // If button 3 and button 4 are pressed, select the next color from the palette
+    currentColorIndex++;
+    if (currentColorIndex >= numColors) {
+      currentColorIndex = 0;
+    }
+    colorSelected = true;
+  }
+
+  // Check if the user is adjusting the LED brightness
+  if (button1 && button10) {
+    // If button 5 and button 6 are pressed, increase the brightness
+    brightnessLevel = min(brightnessLevel + BRIGHTNESS_INCREMENT, 255);
+    FastLED.setBrightness(brightnessLevel);
+  } else if (button7 && button8) {
+    // If button 7 and button 8 are pressed, decrease the brightness
+    brightnessLevel = max(brightnessLevel - BRIGHTNESS_INCREMENT, 0);
+    FastLED.setBrightness(brightnessLevel);
+  }
+
+  // Check if the user is turning the LEDs on or off
+  if (button1 && button16) {
+    // If button 9 and button 10 are pressed, turn the LEDs off
+    for (int i = 0; i < NUM_LEDS_1; i++) {
+      leds1[i].setHSV(0, 0, 0);
+    }
+    FastLED.show();
+
+    for (int i = 0; i < NUM_LEDS_2; i++) {
+      leds2[i].setHSV(0, 0, 0);
+    }
+    FastLED.show();
+
+    for (int i = 0; i < NUM_LEDS_3; i++) {
+      leds3[i].setHSV(0, 0, 0);
+    }
+    FastLED.show();
+
+    ledsOn = false;
+  } else if (!ledsOn) {
+    // If the LEDs were turned off, turn them back on
+    for (int i = 0; i < NUM_LEDS_1; i++) {
+      leds1[i].setHSV(currentColorIndex + (i / NUM_LEDS_1), 255, 255);
+    }
+    FastLED.show();
+
+    for (int i = 0; i < NUM_LEDS_2; i++) {
+      leds2[i].setHSV(currentColorIndex + (i / NUM_LEDS_2), 255, 255);
+    }
+    FastLED.show();
+
+    for (int i = 0; i < NUM_LEDS_3; i++) {
+      leds3[i].setHSV(currentColorIndex + (i / NUM_LEDS_3), 255, 255);
+    }
+    FastLED.show();
+
+    ledsOn = true;
+  } else if (colorSelected && ledsOn) {
+    // If the user selected a new color and the LEDs are on, update the LED colors
+    for (int i = 0; i < NUM_LEDS_1; i++) {
+      leds1[i].setHSV(currentColorIndex + (i / NUM_LEDS_1), 255, 255);
+    }
+    FastLED.show();
+
+    for (int i = 0; i < NUM_LEDS_2; i++) {
+      leds2[i].setHSV(currentColorIndex + (i / NUM_LEDS_2), 255, 255);
+    }
+    FastLED.show();
+
+    for (int i = 0; i < NUM_LEDS_3; i++) {
+      leds3[i].setHSV(currentColorIndex + (i / NUM_LEDS_3), 255, 255);
+    }
+    FastLED.show();
+
+    colorSelected = false;
+  }
+}
+ 
